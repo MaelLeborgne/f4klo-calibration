@@ -10,6 +10,7 @@ import pickle
 
 import Classe
 from Classe import *
+from main import *
 
 def Graph_Obs1(nObs, mode):
     '''
@@ -287,36 +288,89 @@ def Graph_Paral_Sensor(nObs, sizeWanted, Sensor_Area):
         )
     fig.show()
 
-def Write_all_pointValue():
+def Write_all_pointValue(begin,end):
     '''
        Calcul pour chaque transit la moyenne de toutes les valeurs du signal réccupéré
        puis l'enregistre dans la colone de pointValue 
+       Cette version permet de séparer en intervale d'observation [begin:end]
+       afin de ne pas faire planter votre ordianteur
     '''
-    for obj in Transit.instance:
-        obj.read_modeTot()
-        obj.read_point()
-    # pas fini
+    CopieLabo=pd.read_csv('./CarnetLabo.write.csv').iloc[:,1:]
+    for transit in Transit.instance[begin:end]: 
+        transit.read_Tot()
+        df = pd.DataFrame(transit.modeTot)
+        point = df.mean().mean()
+        CopieLabo.loc[int(transit.nObs), 'pointValue'] = point
+    CopieLabo.to_csv('./CarnetLabo.write.csv')
 
 def Graph_Elev_write():
     """Extaction de données affichable pour chaque trajet en azimut constante"""
     # Création des données
-    for az in Elev.fileList:
+    CopieLabo = pd.read_csv('./CarnetLabo.write.csv').iloc[:,1:]
+    for az in Elev.fileList[0:35]:
         az.read_Tot() # contenu du fichier de Coordonnée
         nObsRange = Classe.Elev.linkTransit(az) # Récupère les nObs correspondants
-        for nObs in nObsRange: # Itère les nObs des transits
-            Transit.instance[nObs].read_Tot() # Extrait le contenu du fichier du Transit
-            Transit.instance[nObs].read_point() # average de modTot
-        az.pointValue = [Transit.instance[nObs].pointValue for nObs in nObsRange]
+        az.pointValue = [CopieLabo.loc[int(nObs),'pointValue'] for nObs in nObsRange]
         print(az.elev)
         print(az.pointValue)
 
 def Graph_Elev_read():
     """Plot les parcours en azimut constante""" 
     fig, ax = plt.subplots()
-    for az in Elev.fileList:
-        plt.plot(az.elev, az.pointValue, 'b')
+    for az in Elev.fileList[0:35]:
+        plt.plot(az.elev, az.pointValue, '+k')
         plt.xlabel('élévation')
+    #ax.set_yscale('log')
+    #ax.set_ylim(9e-5, 2e-4)
+    plt.show()
+
+def Graph_Elev_fit():
+    # Mise en forme des donnée d'entrée
+    X = []
+    Y = []
+    for az in Elev.fileList[0:35]:
+        X=X+az.elev
+        Y=Y+az.pointValue
+    X=[ [E] for E in X]
+    Y=[ [E] for E in Y]
+    print(X[0:4])
+    print(Y[0:4])
+
+    from sklearn.linear_model import LinearRegression
+    from sklearn.preprocessing import PolynomialFeatures
+    from sklearn.metrics import mean_squared_error
+    
+    # Transformer les données d'entrée pour inclure le terme quadratique
+    poly_features = PolynomialFeatures(degree=2, include_bias=False)
+    X_poly = poly_features.fit_transform(X)
+    
+    # Ajuster le modèle linéaire aux données transformées
+    model = LinearRegression()
+    model.fit(X_poly, Y)
+    
+    # Imprimer le résultat de l'ajustement
+    print(f"Coefficient pour le terme linéaire : {model.coef_[0][0]}")
+    print(f"Coefficient pour le terme quadratique : {model.coef_[0][1]}")
+    print(f"Ordonnée à l'origine (biais) : {model.intercept_[0]}")
+    
+    # Prédiction
+    Y_pred = model.predict(X_poly)
+    
+    # Calculer l'erreur quadratique moyenne (MSE)
+    mse = mean_squared_error(Y, Y_pred)
+    print(f"Erreur Quadratique Moyenne (MSE) : {mse}")
+    
+    #plot
+    X_new = [element[0] for element in X]
+    Y_new = [element[0] for element in Y]
+    Y_pred_new = [element[0] for element in Y_pred]
+
+    fig, ax = plt.subplots()
+    plt.scatter(X_new, Y_new)
+    plt.plot(X_new, Y_pred_new,'o',color='red',label='fit quad')
     ax.set_yscale('log')
     ax.set_ylim(9e-5, 2e-4)
+    plt.legend()
     plt.show()
+
     

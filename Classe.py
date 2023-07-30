@@ -234,9 +234,6 @@ class Transit(metaclass=MetaData):
         self.modeTemp = [] #Temporel
         self.modeFreq = [] #Fréquentiel
 
-        self.PDframe = pd.DataFrame([], dtype= 'float64')
-
-
     def read_Tot(self):
         '''
            Récupération Total des données dans self.modeTot
