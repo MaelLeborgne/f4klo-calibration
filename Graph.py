@@ -12,6 +12,9 @@ import Classe
 from Classe import *
 from main import *
 
+# Graph storage directory
+GSD = "../Graph_download/"
+
 def Graph_Obs1(nObs, mode):
     '''
     Affiche une Observation numéro nObs
@@ -324,17 +327,17 @@ def Graph_Elev_read():
     #ax.set_ylim(9e-5, 2e-4)
     plt.show()
 
-def Graph_Elev_fit():
+def Graph_Elev_fit1D():
     # Mise en forme des donnée d'entrée
-    X = []
-    Y = []
+    E = []
+    PV = []
     for az in Elev.fileList[0:35]:
-        X=X+az.elev
-        Y=Y+az.pointValue
-    X=[ [E] for E in X]
-    Y=[ [E] for E in Y]
-    print(X[0:4])
-    print(Y[0:4])
+        E = E + az.elev
+        PV = PV + az.pointValue
+    E = [[e] for e in E]
+    PV = [[pv] for pv in PV]
+    print(E[0:4])
+    print(PV[0:4])
 
     from sklearn.linear_model import LinearRegression
     from sklearn.preprocessing import PolynomialFeatures
@@ -342,11 +345,11 @@ def Graph_Elev_fit():
     
     # Transformer les données d'entrée pour inclure le terme quadratique
     poly_features = PolynomialFeatures(degree=2, include_bias=False)
-    X_poly = poly_features.fit_transform(X)
+    E_poly = poly_features.fit_transform(E)
     
     # Ajuster le modèle linéaire aux données transformées
     model = LinearRegression()
-    model.fit(X_poly, Y)
+    model.fit(E_poly, PV)
     
     # Imprimer le résultat de l'ajustement
     print(f"Coefficient pour le terme linéaire : {model.coef_[0][0]}")
@@ -354,23 +357,130 @@ def Graph_Elev_fit():
     print(f"Ordonnée à l'origine (biais) : {model.intercept_[0]}")
     
     # Prédiction
-    Y_pred = model.predict(X_poly)
+    PV_pred = model.predict(E_poly)
     
     # Calculer l'erreur quadratique moyenne (MSE)
-    mse = mean_squared_error(Y, Y_pred)
+    mse = mean_squared_error(PV, PV_pred)
     print(f"Erreur Quadratique Moyenne (MSE) : {mse}")
     
     #plot
-    X_new = [element[0] for element in X]
-    Y_new = [element[0] for element in Y]
-    Y_pred_new = [element[0] for element in Y_pred]
+    E_new = [element[0] for element in E]
+    PV_new = [element[0] for element in PV]
+    PV_pred_new = [element[0] for element in PV_pred]
 
     fig, ax = plt.subplots()
-    plt.scatter(X_new, Y_new)
-    plt.plot(X_new, Y_pred_new,'o',color='red',label='fit quad')
+    plt.scatter(E_new, PV_new)
+    plt.plot(E_new, PV_pred_new,'o',color='red',label='fit quad')
     ax.set_yscale('log')
     ax.set_ylim(9e-5, 2e-4)
     plt.legend()
     plt.show()
 
+def Graph_Elev_fit2D():
+    # Mise en liste pour scikit
+    E = []
+    A = []
+    PV = []
+    EA = [] # pour relier les valueur du fit avec les coordonnées
+    for az in Elev.fileList[0:35]:
+        E = E + az.elev
+        A = A + az.azimut
+        PV = PV + az.pointValue
+        EA.append(list(zip(az.elev, az.azimut)))
     
+    XY = [ [e, a] for (e,a) in zip(E,A)]
+    PV = [[pv] for pv in PV]
+    
+    from sklearn.linear_model import LinearRegression
+    from sklearn.preprocessing import PolynomialFeatures
+    from sklearn.metrics import mean_squared_error
+    
+    # Transformer les données d'entrée pour inclure le terme quadratique
+    poly_features = PolynomialFeatures(degree=2, include_bias=False)
+    XY_poly = poly_features.fit_transform(XY)
+    
+    # Ajuster le modèle linéaire aux données transformées
+    model = LinearRegression()
+    model.fit(XY_poly, PV)
+    
+    # Imprimer le résultat de l'ajustement
+    print(f"Coefficient pour le terme linéaire : {model.coef_[0][0]}")
+    print(f"Coefficient pour le terme quadratique : {model.coef_[0][1]}")
+    print(f"Ordonnée à l'origine (biais) : {model.intercept_[0]}")
+    
+    # Prédiction
+    PV_pred = model.predict(XY_poly)
+    
+    # Calculer l'erreur quadratique moyenne (MSE)
+    mse = mean_squared_error(PV, PV_pred)
+    print(f"Erreur Quadratique Moyenne (MSE) : {mse}")
+     
+    
+    # Mise en array pour pyplot 
+    Elev.SerList = []
+    for az in Elev.fileList[0:35]:
+        Elev.SerList.append(
+                pd.Series(az.pointValue, index=az.elev, name=str(az.azimut[0]))
+                ) 
+#    # meth 2
+#    df = pd.DataFrame(Elev.SerList)
+#    PV_array = df.to_numpy()
+#    E_array = np.array([[list(df.columns)]]*len(list(df.index)))
+#    A_array = np.array([[list(df.index.astype(float))]]*len(list(df.columns)))
+       
+    # 1ère méthode: To 1-dimention list
+    E_new = [line[0] for line in XY]
+    print(len(E_new))
+    A_new = [line[1] for line in XY]
+    PV_new = [element[0] for element in PV] # Exp Data
+    PV_pred_list = [element[0] for element in PV_pred] # model 1-dimention list
+    # meth3
+    from collections import namedtuple
+    Point3D = namedtuple('Point3D','elevation azimut value model')
+    tuple_Exp = zip(E_new, A_new, PV_new, PV_pred_list)
+    Ntuple_Exp = [Point3D(t[0],t[1],t[2],t[3]) for t in tuple_Exp]
+    df_Exp = pd.DataFrame(Ntuple_Exp)
+#    # To 2d-array
+#    E_array = np.array([[part1,part2] for (part1,part2) in zip(E_new[:108],E_new[108:])])
+#    A_array = np.array([[part1,part2] for (part1,part2) in zip(A_new[:108],A_new[108:])])
+#    PV_array = np.array([[part1,part2] for (part1,part2) in zip(PV_new[:108],PV_new[108:])])
+#    PV_pred_array = np.array([[part1,part2] for (part1,part2) in zip(PV_pred_list[:108], PV_pred_list[108:])])
+    
+#    # meth2: DataFrame Nan chamboule les coordonnées
+#    PV_pred_list = [element[0] for element in PV_pred] # model 1-dimention list
+#    SerListModel = list(Elev.SerList) # Copy experiment pd.Series data
+#    for PV in PV_pred_list:
+#         for s in SerListModel:
+#             serLen = len(list(s.index)) # series len()
+#             s.loc[:] = PV_pred_list[:serLen] # replace values in Series
+#             del PV_pred_list[:serLen] # del in list of model data
+#    
+#    df_model = pd.DataFrame(SerListModel)
+#    PV_pred_array = df_model.to_numpy()
+#    print(PV_pres_array)
+    
+    # plot (test 2)
+    from mpl_toolkits.mplot3d import Axes3D
+    from matplotlib import cm
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    ax.set_zscale('log')
+    ax.set_zlim(9e-5, 11e-5)
+    ax.set_xlabel('Élevation')
+    ax.set_ylabel('Azimut')
+    ax.set_zlabel('Background Noise')
+
+    ax.scatter3D(df_Exp.elevation ,df_Exp.azimut ,df_Exp.value ,zdir='z',color='b')
+    surf = ax.plot_trisurf(df_Exp.elevation, df_Exp.azimut, df_Exp.model, cmap=cm.jet, linewidth=0.1)
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+#    plt.savefig('{}Elev_fit2_{}.png'.format(GSD,next(iter(os.popen('date \"+%y%m%d%H%M%S\"')))[:-1]))
+    plt.show()
+    
+    # TEST UNITAIRE:
+    '''
+from main import *
+Graph_Elev_write()
+Graph_Elev_fit2D()
+
+    '''
+
+
