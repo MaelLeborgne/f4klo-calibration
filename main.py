@@ -48,21 +48,32 @@ print('Pour afficher la liste des Observations du carnet de Labo,',
 # Fonctions interactives
 import Graph
 from Graph import *
+import Write 
 
-def interactif():
+def help():
     '''
        Affiche à l'utilisateur les possibilitées du mode interactif
     '''
     print('\n###  Mode interactif   ###')
-    print('Fonctions:')
-    for name in dir(Graph):
-        if name[0:5] == 'Graph': # Garde uniquement les fonctions Graph_
-            print(name, '()')
+    from inspect import getmembers, isfunction
 
-    print('\nPour Afficher la doc d\'une fonction entrez: print(Graph_.__doc__)')
+    print('Graph.')
+    for (name,obj) in getmembers(Graph):
+        if isfunction(obj):
+            if obj.__module__ == 'Graph': 
+                print('    ',name, '()')
+
+    print('Write.')
+    for (name,obj) in getmembers(Write):
+        if isfunction(obj):
+            if obj.__module__ == 'Write': 
+                print('    ',name, '()')
+
+    print('\nPour Afficher la doc d\'une fonction entrez: print(nomFonction.__doc__)')
     print('Pour Afficher les paramètres d\'une Observation n°nObs, entrez:   CarnetLabo.iloc[nObs]')
-    print('\nVous pourrez toujours afficher cette aide en entrant: interactif()')
-interactif()
+    print('\nPour afficher cette aide tapez: help()')
+
+help() 
 
 ## Début de calibration
 #import Correction as Corr

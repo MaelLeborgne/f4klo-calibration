@@ -15,7 +15,7 @@ from main import *
 # Graph storage directory
 GSD = "../Graph_download/"
 
-def Graph_Obs1(nObs, mode):
+def Obs1(nObs, mode):
     '''
     Affiche une Observation numéro nObs
     Selon le mode choisi: temporel 'T' ou frequentiel 'F'
@@ -32,7 +32,7 @@ def Graph_Obs1(nObs, mode):
          self.graph_Temp(ax)
     plt.show()
 
-def Graph_Obs2(a,b):
+def Obs2(a,b):
     """Comparaison des Transit n° a et b"""
     fig, ax = plt.subplots(2,2,figsize=(15,15), layout="constrained")
     
@@ -49,7 +49,7 @@ def Graph_Obs2(a,b):
     print('\n')
     plt.show()
 
-def Graph_Obs9(LObs):
+def Obs9(LObs):
     """affichage en 3*3 de la liste de nObs donnée"""
     fig, ax = plt.subplots(3,3,figsize=(15,15), layout="constrained")
     i=0
@@ -68,38 +68,31 @@ def Graph_Obs9(LObs):
     print('\n')
     plt.show()
 
-def Graph_PF_write(CarnetLabo):
-    """
-       écrit Tout les spectres des Points Froids 4 3 1
-       Dans un fichier csv
-    """
-
-    # Extrait les objet transit tous les point froids du carnet de Labo
-    PFobjet = [] 
-    # Select by astre name
-    astre = CarnetLabo.groupby('astre')
-    PF1 = astre.get_group('PF1')
-    PF3 = astre.get_group('PF3')
-    PF4 = astre.get_group('PF4')
-
-    df = pd.concat([PF1,PF3,PF4]) # single DataFrame
-    #df = df.groupby('gain').get_group('38.0') # gain filter
-    print(df)
-        
-    PFobjet = list(df['instance'])  # storage of class Transit objects
-
-    # initialisation des données de capture
-    for PF in PFobjet:
-        PF.read_Tot()
-        PF.read_Freq()
+def Sensor4():
+    '''Affiche les données influx de 4 varibales'''
+    fig, ax = plt.subplots(2,2,figsize=(15,15), layout="constrained")
     
-    # Storage of spectrum in CarnetLabo
-    CarnetLabo["freqScale"] = [transit.freqScale for transit in Transit.instance]
-    CarnetLabo["Spectrum"] = [transit.modeFreq for transit in Transit.instance]
+    self = Sensor.fileList[3]
+    self.read_Tot()
+    self.graph(ax[0,0])
+    
+    self = Sensor.fileList[6]
+    self.read_Tot()
+    self.graph(ax[0,1])
+    
+    self = Sensor.fileList[15]
+    self.read_Tot()
+    self.graph(ax[1,0])
+    
+    self = Sensor.fileList[17]
+    self.read_Tot()
+    self.graph(ax[1,1])
+    
+    print('\n')
+    plt.show()
 
-    CarnetLabo.loc[df_PF].to_csv('PF_dataFrame.csv')
 
-def Graph_PF_read():
+def PF_read():
     """
        affiche tout les spectres
        Puis calule et affiche la mediane en chaque point
@@ -131,7 +124,7 @@ def Graph_PF_read():
     ax.legend()
     plt.show()
 
-def Graph_PF_DC():
+def PF_DC():
     """
        Identifi le spectre continu de chaque point froids avec resample
        calcule le spectre médian
@@ -139,33 +132,34 @@ def Graph_PF_DC():
     """
     fig, ax = plt.subplots(figsize=(15,15))
 
-    # read
+    # read all PF Spectrum (by freq in col)
     df_PF = pd.read_csv('PF_dataFrame.csv',index_col=0)
-    # to list of float
+
+    # frequency as array of float
     freqScale = df_PF.columns.astype(float).to_numpy()
     minF = freqScale[0]
     maxF = freqScale[-1]
-
-    # iter on spectrum and plot spectrum resampled
+    # resample frequency
     freq_new = np.linspace(minF, maxF, 60, endpoint=False)
-    df_PF_res = pd.DataFrame(index=freq_new)
-    for (label,content) in df_PF.T.items():
-        spec_res = sp.signal.resample(list(content),60) # resample with scipy
-        ax.plot(freq_new, spec_res, color='b')
-        mean = np.average(spec_res)
-        ax.plot([minF, maxF],[mean, mean], color='purple')
-        df_PF_res[label] = spec_res # storage
 
-    df_PF_res = df_PF_res.T 
-    #df_PF_res["mean"] = df_PF_res.mean(1)
-    print(df_PF_res)
+    df_PF_new = pd.DataFrame(index=freq_new)
+    # Spectrum resampler
+    for (label,content) in df_PF.T.items(): # by nObs in col
+        spec_res = sp.signal.resample(list(content),60) # resample with scipy
+        ax.plot(freq_new, spec_res, color='b') # plot
+        mean = np.average(spec_res) # mean
+        ax.plot([minF, maxF],[mean, mean], color='purple') # plot mean
+        df_PF_new[label] = spec_res # storage by nObs in col
+
+    df_PF_new = df_PF_new.T # by Freq in col
+    df_PF_new["mean"] = df_PF_new.mean(1) # in new column write mean on nObs
+    print(df_PF_new)
 
     # Mediane of rsampled
-    medianeGlobale = df_PF_res.median(axis=0) # by freq
+    medianeGlobale = df_PF_new.iloc[:,:-1].median(axis=0) # by freq
     ax.plot(freq_new, medianeGlobale, color='red', label='mediane') # Plot
 
     # show
-    #ax.set_title("Mediane des spectres de tout les tracking de points froids\n(gain à 38)", fontsize=20)
     ax.set_xlabel('Fréquence (en MHz)')
     ax.set_ylabel('Puissance du signal')
     plt.xticks(np.arange(minF, maxF+0.00001, 0.2))
@@ -173,259 +167,67 @@ def Graph_PF_DC():
     ax.grid(True)
     ax.legend()
     plt.show()
+    
+    # Save
+    df_PF_new.to_csv('PF_DC_save.csv')
 
-def Graph_Sensor1():
-    '''Affiche les données influx de 4 varibales'''
-    fig, ax = plt.subplots(2,2,figsize=(15,15), layout="constrained")
-    
-    self = Sensor.fileList[3]
-    self.read_Tot()
-    self.graph(ax[0,0])
-    
-    self = Sensor.fileList[6]
-    self.read_Tot()
-    self.graph(ax[0,1])
-    
-    self = Sensor.fileList[15]
-    self.read_Tot()
-    self.graph(ax[1,0])
-    
-    self = Sensor.fileList[17]
-    self.read_Tot()
-    self.graph(ax[1,1])
-    
-    print('\n')
+def PF_DC_Temp():
+    '''
+       plot mean by spectrum / mean Temperature
+TEST:
+from main import *
+Graph.PF_DC()
+Graph.PF_DC_Temp()
+    '''
+    df_PF = pd.read_csv('PF_DC_save.csv',index_col=0)
+    nObsRange = list(df_PF.index.astype(int))
+    # Import the Data of sensor on each Observation
+    df_sen = pd.DataFrame(index=['ext']) # filled by loop
+    for nObs in nObsRange:
+        # test if exist and request influx if not
+        transit = Transit.instance[nObs]
+        transit.import_Sensor('ext','obj','temp','f4klo')
+        # pick values
+        y_sen = transit.sensorFrame.T['value']['ext']
+        y_sen = np.average(y_sen)
+        # add to DataFrame
+        df_sen[nObs] = y_sen # new column
+
+    # Prepare data
+    Spec_M = df_PF['mean']
+    Spec_M = Spec_M.sort_values(ascending=True).to_numpy()
+    Temp = df_sen.T # put nObs in index
+    Temp = Temp.sort_values(by='ext',ascending=True).to_numpy()
+
+    # figure
+    fig, ax = plt.subplots(figsize=(15,15))
+    ax.plot(Temp, Spec_M)
+
+    # fit with scikit learn
+    # 1d-list to 2d-list
+    T_2d = list(Temp)
+    print(T_2d)
+    M_2d = [[m] for m in list(Spec_M)]
+    print(M_2d)
+
+    # Fit Polynomiale
+    (Y_pred_2d, [x0,x1,x2], err) = fit2D(T_2d,M_2d)
+
+    # 2d-list to 1d-list
+    Y_pred_1d = [element[0] for element in Y_pred_2d]
+
+    #plot
+    plt.plot(Temp, Y_pred_1d,'o',color='red',label='fit quad')
+    plt.text(0.1, 0.9, fr'$y = {x2:.3}x^2 + {x1:.3}x + {x0:.3}$',
+               transform=plt.gca().transAxes, fontsize=16)
+    plt.legend()
     plt.show()
 
-def Graph_Paral_Coord():
-    '''Coordonnée Parallèle multi-dimentions'''
-    import plotly.graph_objects as go
 
-    # extraction des données
-    transit = Transit.instance[258]
-    transit.read_Tot()
-    transit.read_Freq()
-
-    # extraction des données
-    transit = Transit.instance[259]
-    transit.read_Tot()
-    transit.read_Freq()
-
-    # extraction des données
-    transit = Transit.instance[260]
-    transit.read_Tot()
-    transit.read_Freq()
-
-    minmax = [transit.freqScale[0], transit.freqScale[-1]]
- 
-    fig = go.Figure(data=
-        go.Parcoords(
-            line_color='blue',
-            dimensions = list([
-                dict(range = minmax,
-                     label = 'Fréquence', values = Transit.instance[258].freqScale),
-                dict(range = [0,0.0005],
-                     label = 'Spectre PF4', values = Transit.instance[258].modeFreq),
-                dict(range = [0,0.0005],
-                     label = 'Spectre PF3', values = Transit.instance[259].modeFreq),
-                dict(range = [0,0.0005],
-                     label = 'Spectre PF1', values = Transit.instance[260].modeFreq)
-                ])
-            )
-        )
-    fig.show()
-
-def Graph_Paral_Sensor(nObs, sizeWanted, Sensor_Area):
-    '''
-       Coordonnée Parallèle multi-dimentions des sensors
-       + SALib delta corélation indice
-TEST:
-from main import *
-Graph_Paral_Sensor(258,100,[('ra','coord','indi'),('dec','coord','indi'),('ext','obj','temp'),('cav','obj','temp')])
-    '''
-    import plotly.graph_objects as go
-
-    # Spectre
-    transit = Transit.instance[nObs]
-    transit.read_Tot()
-    transit.read_Freq()
-    # Resize Freq
-    x = transit.freqScale
-    y = transit.modeFreq
-    Freq_resiz = transit.resize(x, y , sizeWanted)
-    print('Taille de l\'échantillon', len(Freq_resiz))
-
-    # Sensors
-    Sensor_Area_defaut = [('ra','coord','indi'),
-                          ('dec','coord','indi'),
-                          ('ext','obj','temp'),
-                          ('cav','obj','temp')]
-
-    Sensor_ParaDict = [] # for plotly library
-    for sensor in Sensor_Area: # shaping sensors data
-        transit.import_Sensor(sensor[0], sensor[1], sensor[2])
-        # Resizing
-        x = transit.sensorFrame.T['time'][sensor[0]]
-        y = transit.sensorFrame.T['value'][sensor[0]]
-        y = transit.resize(x, y , sizeWanted)
-        # Storage
-        Sensor_ParaDict.append(
-                dict(range = [np.min(y), np.max(y)],
-                     label = str(sensor), 
-                     values = y)
-                )
-
-    # Giving delta indice
-    from SALib.analyze import delta
-    
-    # Définir le problème
-    problem = {
-        'num_vars': 4,
-        'names': ['ra', 'dec', 'ext', 'cav'],
-        'bounds': [d["range"] for d in Sensor_ParaDict] #TODO
-    }
-    
-    # Remplacer par vos propres valeurs
-    Values = [list(d["values"]) for d in Sensor_ParaDict]
-    print(Values)
-    X = np.array(list(zip(*Values))) 
-    print(X)
-    Y = np.array(Freq_resiz)
-    # Analyse Delta
-    Si = delta.analyze(problem, X, Y, print_to_console=True)
-
-#    # Plot with plotly library
-#    fig = go.Figure(data=
-#        go.Parcoords(
-#            line_color='blue',
-#            dimensions = list([
-#                dict(range = [0,0.0005],
-#                     label = 'Spectrum value', values = Freq_resiz)]) 
-#                + Sensor_ParaDict
-#            )# each dict make a dimention
-#        )
-#    fig.show()
-
-def Graph_PFall_deltaPara(sizeWanted, Sensor_Area):
-    '''
-       Corélation des Spectre de Points Froid avec les sensors: 
-       - Coéfficients avec SALib
-       - Coordonnée Parallèle avec plotly
-
-       Pour réduire les dimentions on moyenne:
-       - soit sur chaque fréquence et seconde 
-       (Afin de faire correspondre les donnée en nombres de points,
-       on utilise un fonction d'interpolation) 
-
-       - soit sur chaque spectre et capteur 
-       (ici pas besoin de redimentionnement)
-       
-TEST:
-from main import *
-Graph_PFall_deltaPara(100,
-[('ra','coord','indi','f4klo'),
-('dec','coord','indi','f4klo'),
-('ext','obj','temp','f4klo'),
-('cav','obj','temp','f4klo'),
-('preamp2','obj','temp','f4klo'),
-('Pluto','sdr','gain','f4klo'),
-('LFPG','station','metar','weather')])
-
-erreur avec az, elev
-    '''
-    import plotly.graph_objects as go
-
-    # Read PF Spectrum Data
-    df_PF = pd.read_csv('PF_dataFrame.csv',index_col=0)
-
-    # Read PF frequency Scale
-    freqScale = df_PF.columns.astype(float).to_numpy()
-    minF = freqScale[0]
-    maxF = freqScale[-1]
-
-    # Resample
-    x_freq = freqScale
-    y_freq = df_PF.T.mean().to_numpy() # Transpose to mean on each Spectrum
-    print(y_freq)
-    #y_freq = Transit.instance[0].resize(x_freq, y_freq , sizeWanted) #TODO: sortir le resize de la classe Transit
-    print('Taille de l\'échantillon', len(y_freq))
-
-    # Build Sensor Data
-    Sensor_ParaDict = [] # for plotly library
-    for sensor in Sensor_Area: # shaping sensors data
-        df_sen = pd.DataFrame()
-        sen_list = []
-        nObsRange = list(df_PF.index.astype(int))
-        for nObs in nObsRange:
-            transit = Transit.instance[nObs]
-            transit.import_Sensor(sensor[0], sensor[1], sensor[2], sensor[3])
-            # Resizing
-            x_sen = transit.sensorFrame.T['time'][sensor[0]]
-            y_sen = transit.sensorFrame.T['value'][sensor[0]]
-            #y_sen = transit.resize(x_sen, y_sen , sizeWanted)
-            sen_list.append(y_sen)
-
-        sen_df = pd.DataFrame(sen_list).T # Transpose to mean on each sensor
-        sen_mean = sen_df.mean().to_numpy()
-        df_sen[str(sensor)] = sen_mean # each columns represent a sensor
-        print(df_sen)
-        # Storage
-        Sensor_ParaDict.append(
-                dict(range = [np.min(sen_mean), np.max(sen_mean)],
-                     label = transit.sensorFrame.T['name'][sensor[0]],
-                     values = sen_mean)
-                )
-
-    # Giving delta indice
-    from SALib.analyze import delta
-
-    # Définir le problème
-    problem = {
-        'num_vars': len(Sensor_Area),
-        'names': [d["label"] for d in Sensor_ParaDict],
-        'bounds': [d["range"] for d in Sensor_ParaDict] #TODO
-    }
-
-    # Remplacer par vos propres valeurs
-    Values = [list(d["values"]) for d in Sensor_ParaDict]
-    print(Values)
-    X = np.array(list(zip(*Values)))
-    print(np.size(X))
-    Y = np.array(y_freq)
-    print(np.size(y_freq))
-    # Analyse Delta
-    Si = delta.analyze(problem, X, Y, print_to_console=True)
-
-    # Plot with plotly library
-    fig = go.Figure(data=
-        go.Parcoords(
-            line_color='blue',
-            dimensions = list([
-                dict(range = [np.min(y_freq),np.max(y_freq)],
-                     label = 'Spectrum value', values = y_freq)])
-                + Sensor_ParaDict
-            )# each dict make a dimention
-        )
-    fig.show()
-
-
-def Write_all_pointValue(begin,end):
-    '''
-       Calcul pour chaque transit la moyenne de toutes les valeurs du signal réccupéré
-       puis l'enregistre dans la colone de pointValue 
-       Cette version permet de séparer en intervale d'observation [begin:end]
-       afin de ne pas faire planter votre ordianteur
-    '''
-    CopieLabo = pd.read_csv('./CarnetLabo.pointValue.csv',index_col=0)
-    for transit in Transit.instance[begin:end]: 
-        transit.read_Tot()
-        df = pd.DataFrame(transit.modeTot)
-        point = df.mean().mean()
-        CopieLabo.loc[int(transit.nObs), 'pointValue'] = point
-    CopieLabo.to_csv('./CarnetLabo.pointValue.csv',index_label='nObs')
-
-def Graph_Elev_read():
-    """Extaction de données affichable pour chaque trajet en azimut constante"""
+def Elev_read():
+    """
+       Extaction de données affichable pour chaque trajet en azimut constante
+    """
     # Création des données
     CopieLabo = pd.read_csv('./CarnetLabo.csv',index_col=0)
     for az in Elev.fileList[0:35]:
@@ -435,56 +237,81 @@ def Graph_Elev_read():
         print(az.elev)
         print(az.pointValue)
 
-def Graph_Elev_fit1D():
-    # Mise en forme des donnée d'entrée
+def Elev_fit():
+    '''
+       fit elevation/pointValue 
+
+TEST:
+from main import *
+Graph.Elev_read()
+Graph.Elev_fit()
+    '''
+    # Reccup en liste
     E = []
     PV = []
     for az in Elev.fileList[0:35]:
         E = E + az.elev
         PV = PV + az.pointValue
-    E = [[e] for e in E]
-    PV = [[pv] for pv in PV]
-    print(E[0:4])
-    print(PV[0:4])
 
-    from sklearn.linear_model import LinearRegression
-    from sklearn.preprocessing import PolynomialFeatures
-    from sklearn.metrics import mean_squared_error
+    # 1d-list to 2d-list
+    E_2d = [[e] for e in E]
+    PV_2d = [[pv] for pv in PV]
     
-    # Transformer les données d'entrée pour inclure le terme quadratique
-    poly_features = PolynomialFeatures(degree=2, include_bias=False)
-    E_poly = poly_features.fit_transform(E)
-    
-    # Ajuster le modèle linéaire aux données transformées
-    model = LinearRegression()
-    model.fit(E_poly, PV)
-    
-    # Imprimer le résultat de l'ajustement
-    print(f"Coefficient pour le terme linéaire : {model.coef_[0][0]}")
-    print(f"Coefficient pour le terme quadratique : {model.coef_[0][1]}")
-    print(f"Ordonnée à l'origine (biais) : {model.intercept_[0]}")
-    
-    # Prédiction
-    PV_pred = model.predict(E_poly)
-    
-    # Calculer l'erreur quadratique moyenne (MSE)
-    mse = mean_squared_error(PV, PV_pred)
-    print(f"Erreur Quadratique Moyenne (MSE) : {mse}")
-    
+    # fit
+    (Y_pred_2d, coeff, err) = fit2D(E_2d,PV_2d)
+
+    # 2d-list to 1d-list
+    X_new = [element[0] for element in E_2d]
+    Y_new = [element[0] for element in PV_2d]
+    Y_pred_new = [element[0] for element in Y_pred_2d]
+
     #plot
-    E_new = [element[0] for element in E]
-    PV_new = [element[0] for element in PV]
-    PV_pred_new = [element[0] for element in PV_pred]
-
     fig, ax = plt.subplots()
-    plt.scatter(E_new, PV_new)
-    plt.plot(E_new, PV_pred_new,'o',color='red',label='fit quad')
+    plt.scatter(X_new, Y_new)
+    plt.plot(X_new, Y_pred_new,'o',color='red',label='fit quad')
     ax.set_yscale('log')
     ax.set_ylim(9e-5, 2e-4)
     plt.legend()
     plt.show()
 
-def Graph_Elev_fit2D():
+def fit2D(X,Y):
+    '''
+       take [[],[],...] and [[],[],...]
+       give [[],[]...]
+       return prédiction for Y
+    '''
+    from sklearn.linear_model import LinearRegression
+    from sklearn.preprocessing import PolynomialFeatures
+    from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
+    
+    # Transformer les données d'entrée pour inclure le terme quadratique
+    poly_features = PolynomialFeatures(degree=2, include_bias=False)
+    X_poly = poly_features.fit_transform(X)
+    
+    # Ajuster le modèle linéaire aux données transformées
+    model = LinearRegression()
+    model.fit(X_poly, Y)
+    
+    # Imprimer le résultat de l'ajustement
+    print(f"Coefficient pour le terme linéaire : {model.coef_[0][0]}")
+    print(f"Coefficient pour le terme quadratique : {model.coef_[0][1]}")
+    print(f"Ordonnée à l'origine (biais) : {model.intercept_[0]}")
+    coeff = [model.intercept_[0],
+             model.coef_[0][0],
+             model.coef_[0][1]]
+    
+    # Prédiction
+    Y_pred = model.predict(X_poly)
+    
+    # Calculer l'erreur quadratique moyenne (MSE)
+    mse = mean_squared_error(Y, Y_pred)
+    print(f"Erreur Quadratique Moyenne (MSE) : {mse}")
+    mape = mean_absolute_percentage_error(Y,Y_pred)
+    print(f"Pourcentage d'Erreur Absolue Moyenne (MAPE) : {mape}")
+    
+    return (Y_pred, coeff, mape)
+
+def Elev_fit3D():
     '''
        Affiche le bruit de fond en fonction des coordonnée azimut/elevation
        plusieurs méthodes de formatages des données (DataFrame, Series)
@@ -492,8 +319,8 @@ def Graph_Elev_fit2D():
 
 TEST:
 from main import *
-Graph_Elev_read()
-Graph_Elev_fit2D()
+Graph.Elev_read()
+Graph.Elev_fit2D()
 
     '''
     
@@ -629,4 +456,113 @@ Graph_Elev_fit2D()
 # degré 3 (MAPE) : 0.022868027542152735
 # degré 4 (MAPE) : 0.021643753017180075
 '''
+
+def PF_all_deltaPara(sizeWanted, Sensor_Area):
+    '''
+       Corélation des Spectre de Points Froid avec les sensors: 
+       - Coéfficients avec SALib
+       - Coordonnée Parallèle avec plotly
+
+       Pour réduire les dimentions on moyenne:
+       - soit sur chaque fréquence et seconde 
+       (Afin de faire correspondre les donnée en nombres de points,
+       on utilise un fonction d'interpolation) 
+
+       - soit sur chaque spectre et capteur 
+       (ici pas besoin de redimentionnement)
+       
+TEST:
+from main import *
+Graph.PF_all_deltaPara(100,
+[('ra','coord','indi','f4klo'),
+('dec','coord','indi','f4klo'),
+('ext','obj','temp','f4klo'),
+('cav','obj','temp','f4klo'),
+('preamp2','obj','temp','f4klo'),
+('Pluto','sdr','gain','f4klo'),
+('LFPG','station','metar','weather')])
+
+erreur avec az, elev
+    '''
+    import plotly.graph_objects as go
+
+    # Read PF Spectrum Data
+    df_PF = pd.read_csv('PF_dataFrame.csv',index_col=0)
+    # Read PF frequency Scale
+    freqScale = df_PF.columns.astype(float).to_numpy()
+    minF = freqScale[0]
+    maxF = freqScale[-1]
+
+    # Reshape Spec
+    x_freq = freqScale
+    y_freq = df_PF.T.mean().to_numpy() # Transpose to mean on each Spectrum
+    print(y_freq)
+    #y_freq = Transit.instance[0].resize(x_freq, y_freq , sizeWanted) #TODO: sortir le resize de la classe Transit
+    print('Taille de l\'échantillon', len(y_freq))
+
+    # Build Sensor Data
+    Sensor_ParaDict = [] # for plotly library
+    for sensor in Sensor_Area: # shaping sensors data
+        # Empty df for adding  
+        df_sen = pd.DataFrame()
+        sen_list = []
+        nObsRange = list(df_PF.index.astype(int)) 
+        # Import the Data of sensor on each Observation
+        for nObs in nObsRange:
+            transit = Transit.instance[nObs]
+            transit.import_Sensor(sensor[0], sensor[1], sensor[2], sensor[3])
+            # Resizing
+            x_sen = transit.sensorFrame.T['time'][sensor[0]]
+            y_sen = transit.sensorFrame.T['value'][sensor[0]]
+            #y_sen = transit.resize(x_sen, y_sen , sizeWanted)
+            sen_list.append(y_sen)
+
+        # Transpose to mean on each sensor
+        sen_df = pd.DataFrame(sen_list).T 
+        sen_mean = sen_df.mean().to_numpy()
+        # Each columns represent a sensor
+        df_sen[str(sensor)] = sen_mean 
+        print(df_sen)
+        # Parallèle Coordinate graph parameters
+        Sensor_ParaDict.append(
+                dict(range = [np.min(sen_mean), np.max(sen_mean)],
+                     label = transit.sensorFrame.T['name'][sensor[0]],
+                     values = sen_mean)
+                )
+    # end of for sensor loop
+
+    ## Search delta indice
+    from SALib.analyze import delta
+
+    # Définir le problème
+    problem = {
+        'num_vars': len(Sensor_Area),
+        'names': [d["label"] for d in Sensor_ParaDict],
+        'bounds': [d["range"] for d in Sensor_ParaDict] #TODO
+    }
+
+    # sensors value in list of list
+    Values = [list(d["values"]) for d in Sensor_ParaDict]
+    # to X 2d-array
+    X = np.array(list(zip(*Values)))
+    print(np.size(X))
+
+    # Spectrum values array
+    Y = np.array(y_freq)
+    print(np.size(y_freq))
+
+    # Analyse Delta
+    Si = delta.analyze(problem, X, Y, print_to_console=True)
+
+    # Plot Parallel Coordinate Graph with plotly library
+    fig = go.Figure(data=
+        go.Parcoords(
+            line_color='blue',
+            dimensions = list([
+                dict(range = [np.min(y_freq),np.max(y_freq)],
+                     label = 'Spectrum value', values = y_freq)])
+                + Sensor_ParaDict
+            )# each dict make a dimention
+        )
+    fig.show()
 
