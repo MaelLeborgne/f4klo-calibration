@@ -7,8 +7,9 @@ echo "variable: $3"
 echo "clef: $4"
 echo "branche: $5" # ne fonctionne pas dans la commande ci-dessous
 branche=$5
+echo "database: $6"
 
-influx -host giskard2.hd.free.fr -database f4klo -precision s -execute "select * from ${branche} where $4 =~ /$3/ and time > '$1' and time < '$1' + $2" -format csv > Sensor_$5_$3_$1.dat
+influx -host giskard2.hd.free.fr -database $6 -precision s -execute "select * from ${branche} where $4 =~ /$3/ and time > '$1' and time < '$1' + $2" -format csv > Sensor_$5_$3_$1.dat
 
 # Comment afficher les séries?
 # influx -host giskard2.hd.free.fr

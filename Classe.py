@@ -9,7 +9,7 @@ import time
 import pandas as pd
 
 classes = {} # dictionnaire class : objet de MetaData
-Unit = [['Secondes', 'Ra', 'Dec'],
+Unit = [['Secondes', 'Ra', 'Dec'], #TODO: à récupérer dans influx?
       ['Secondes', 'Température (°C)'],
       ['Secondes', 'Température (°C)'],
       ['Secondes', 'Température (°C)']]
@@ -28,7 +28,7 @@ def fileToList(file, ponctuation):
     return csvTable
 
 ################################################################################# 
-class carnet():
+class carnet(): #TODO: Toujours utile?
     def __init__(self):
         self.path = './'
         self.fileName = 'CarnetLabo.csv'
@@ -51,12 +51,6 @@ class carnet():
             if ligne[0] != 'XXX': # sauf les ligne volontairement ignorées
                 self.DicoList.append(dict(zip(self.entete, ligne)))
 
-    def Duplicate(self):
-        '''
-           Copie le Carnet de Labo dans une nouvelle instance
-        '''
-        pass #TODO: fonction à finir
-
     def Write(self, att, liste):
         '''
            Écrit dans une copie du carnet de labo
@@ -67,7 +61,7 @@ class carnet():
             # reccupère touts les attributs pour en faire des dictionnaire
             # recompose self.content et self.enTete
             # écrit leur contenu dans un nouveau fichier
-            pass #TODO: fonction à finir
+            pass #TODO: fonction non terminé
 
     def Sort(self, **kwargs):
         '''
@@ -127,11 +121,19 @@ class MetaData(type):
            Est Exécuté à chaque fois qu'une classe crée dans la métaclasse
            cls : objet contenant la classe
            nom : contient le nom de la classe
+           
+           Initialisation des attributs de classe
         """
-        type.__init__(cls, nom, bases, dict)
-        classes[nom] = cls
+        type.__init__(cls, nom, bases, dict) # créer la classe
+        classes[nom] = cls # rangement dans le dictionnaire classes
+        
+        # Atributs de classe
         cls.name = nom
-        # Pour chaque classe, créer une liste d'instance
+        cls.path=''
+        cls.fileList = []
+        cls.instance = []
+
+        # On rempli les attributs par classe
         if nom == 'Transit':
             cls.path  = './Data/'
             if os.path.exists(cls.path) == False:
@@ -146,15 +148,17 @@ class MetaData(type):
             files = os.popen("cd {} && ls Coord*".format(cls.path))
             cls.fileList = cls.Rgmt(files)
         elif nom == 'Sensor':
-            cls.path ='./Data/' # différent entre la villette (../../) et chez moi (./)
+            cls.path ='./Data/' 
             files = os.popen("cd {} && ls *.dat".format(cls.path))
             cls.fileList = cls.Rgmt(files)
         else:
-            print('### ERREUR ###:  La class ', nom, ' n\'a pas d\'attribu .path')
+            print('\n### La class ', nom, ' n\'a pas d\'attribu .path')
 
     def Rgmt(cls, liste):
         '''
            Rangement des fichiers de données dans un liste nommé fileList 
+           à partir de la \'liste\' en argument,
+           fournie par os.popen(\"cd...
         '''
         fileList = [] # Liste des données réccupérées
 
@@ -172,6 +176,7 @@ class MetaData(type):
             fileList[nObs].path = cls.path
             fileList[nObs].nObs = nObs
             fileList[nObs].__init__()
+
         print('\n    Identification des fichiers de la class {} ... {}'.format(cls.name, len(fileList)))
         print('Pour afficher la liste de ces objets, entrez:   print({}.fileList)'.format(cls.name))
         return fileList   # list
@@ -181,7 +186,7 @@ class MetaData(type):
            Vérifi la cohérence entre le carnet de Labo et les fichier de ../Data
            ne s'utilise pas avec la classe Sensor
         '''
-        agreement = False # Change en True si les liste de sont d'accord
+        agreement = False # Change en True si les liste sont en accord
         fileLink = ''
         laboLink = ''
         nObs = ''
@@ -194,17 +199,19 @@ class MetaData(type):
 
         # Check de sortie de boucle
         if cls.fileList == []:
-            print("CarnetLabo.Verif(): Aucun fichier de la classe {} dans {}".format(cls.name, cls.path))
+            print("CarnetLabo.Verif(): Aucun fichier de la classe {} dans {}"
+                    .format(cls.name, cls.path))
         else:
             if agreement == True:
-                print('\nCarnetLabo.Verif(): La liste des fichiers a été vérifié avec succès')
+                print('\nCarnetLabo.Verif():', 
+                       'La liste des fichiers a été vérifié avec succès')
             else:
-                error = 'CarnetLabo.Verif(): Le carnet de labo contredit le rangement automatique\n'
-                error = error + 'Class.fileList[{}]: {} \n'.format(nObs, fileLink)
-                error = error + 'CarnetLabo[{}]: {}'.format(nObs, laboLink) 
-                raise NameError(error)
+                raise NameError('CarnetLabo.Verif():', 
+                        'Le carnet de labo contredit le rangement automatique\n',
+                        'Class.fileList[{}]: {} \n'.format(nObs, fileLink),
+                        'CarnetLabo[{}]: {}'.format(nObs, laboLink) ) 
 
-    def display_Obs_carnet(cls):
+    def display_Obs_carnet(cls): #TODO: tester la fonction
         for transit in cls.instance: 
             print('{}: {}'.format(transit.nObs, transit.fileName))
 
@@ -218,8 +225,8 @@ class Transit(metaclass=MetaData):
 
         #  Identification les paramètres dans le nom du fichier 
         file = self.fileName[0:-6]# on enlève le sufixe
-        Param = file.split('_') #tout les paramètre
-        # Identification des attribut
+        Param = file.split('_') # tout les paramètre
+
         self.user = Param[0]
         date = str(Param[1])
         self.date = "{}-{}-{}T{}:{}:{}".format(date[0:4], date[4:6], date[6:8],
@@ -229,10 +236,17 @@ class Transit(metaclass=MetaData):
         self.BP = float(Param[4]) # en MHz
         self.freqE = float(Param[5]) # en MHz
         self.duree = round(float(Param[6])) # en secondes
-        # à remplir avec la fonction Extract()
+
+        # Data of capture
         self.modeTot = [] #Total
         self.modeTemp = [] #Temporel
         self.modeFreq = [] #Fréquentiel
+        self.freqScale = []
+        self.Spectrum = []
+
+        # Sensors informations
+        self.sensorFrame = pd.DataFrame() # filling with import_Sensor()
+        
 
     def read_Tot(self):
         '''
@@ -255,9 +269,9 @@ class Transit(metaclass=MetaData):
                 i += 1
 
             d = time.clock_gettime(time.CLOCK_REALTIME) - t # stop chrono
-            message = '###  Transit.instance[{}]: Extraction de self.modeTot  ###'.format(self.nObs)
-            message = message + '   temps écoulé: ' + str(d)
-            print(message)
+            print('###  Transit.instance[{}]:'.format(self.nObs),
+                    'Extraction de self.modeTot  ###',
+                    '   temps écoulé: ' + str(d) )
     
             # Temp unix du début de la capture
             self.t0 = os.popen("date -d '{} EDT' +%s".format(self.date)) 
@@ -277,9 +291,9 @@ class Transit(metaclass=MetaData):
                 self.modeTemp.append(np.average(self.modeTot[i,:]))
             self.modeTemp = np.array(self.modeTemp)
             d = time.clock_gettime(time.CLOCK_REALTIME) - t # stop chrono
-            message = '###  Transit.fileList[{}]: Extraction de self.modeTemp  ###'.format(self.nObs)
-            message = message + '   temps écoulé: ' + str(d)
-            print(message)
+            print('###  Transit.fileList[{}]:'.format(self.nObs),
+                    'Extraction de self.modeTemp  ###',
+                    '   temps écoulé: ' + str(d) )
 
             # Ordonnée Temporelle
             self.timeScale = np.linspace( 0, self.duree, len(self.modeTemp))
@@ -289,23 +303,40 @@ class Transit(metaclass=MetaData):
            Récupération fréquentielle dans self.modeTemp
         '''
         if self.modeFreq != []:
-            print("###  Transit.fileList[{}]: self.modeFreq a déjà été extraie".format(self.nObs))
+            print('###  Transit.fileList[{}]:'.format(self.nObs),
+                    'self.modeFreq a déjà été extraie')
         else:
             t = time.clock_gettime(time.CLOCK_REALTIME) # begin chrono
-            # Average
+
+            # Average on  frequency and storage in a list
             self.modeFreq = []
             for j in range(self.lenLine):
                 self.modeFreq.append(np.average(self.modeTot[:,j]))
-            self.modeFreq = np.array(self.modeFreq)
+
+            self.modeFreq = np.array(self.modeFreq) # to array
+
             d = time.clock_gettime(time.CLOCK_REALTIME) - t # stop chrono
-            message = '###  Transit.fileList[{}]: Extraction de self.modeFreq  ###'.format(self.nObs)
-            message = message + '   temps écoulé: ' + str(d)
-            print(message)
+            print('###  Transit.fileList[{}]:'.format(self.nObs),
+                    'Extraction de self.modeFreq  ###',
+                    '   temps écoulé: ' +  str(d) )
 
             # Ordonnée fréquentielle
             minF = self.freqC - (1/2)*self.BP
             maxF = self.freqC + (1/2)*self.BP
             self.freqScale = np.linspace( minF, maxF, len(self.modeFreq))
+
+            dico ={
+                    'minF': self.freqC - (1/2)*self.BP,
+                    'maxF': self.freqC + (1/2)*self.BP,
+                    'ech': len(self.modeFreq), # échantillonnage
+                    'freq': self.freqScale,
+                    'values': self.modeFreq
+                    }
+
+            # Storage in a Spectrum Object
+            spec = Spectrum(**dico)
+            Spectrum.instance.append(spec)
+            self.spec = spec
 
     def read_point(self):
         '''
@@ -349,7 +380,7 @@ class Transit(metaclass=MetaData):
         self.modifTot = list(self.modeTot)
         Co.ModifBy_PF_Spectrum(self.modifTot)
 
-    def import_Sensor(self, sensorName, key, branch):
+    def import_Sensor(self, sensorName, key, branch, database):
         '''
            Importe les data du capteur sensorName indiqué
            Puis les stoque dans un fichier
@@ -360,26 +391,41 @@ class Transit(metaclass=MetaData):
             print("le fichier existe déjà")
         else: 
             print("le fichier n'existe pas encore")
+            duree = ''
+            if database == 'weather':
+                duree = '43200' # 1 mesures toute les 12h (43200) pour weather
+            else:
+                duree = self.duree
+            # Commande influx
             initialPath = next(iter(os.popen('pwd')))[0:-1]
-            command = "cd {} && {}".format(Transit.path, initialPath)
-            command = command + "/influx.sh {}Z {}s {} {} {} && ".format(self.date, self.duree, sensorName, key, branch)
-            command = command + "echo \'le fichier vient d être créer!\'"
-            print(command)
-            os.system(command)
+            os.system("cd {} && {}".format(Transit.path, initialPath) +
+                    "/influx.sh {}Z {}s {} {} {} {} && " # duree en seconde
+                    .format(self.date, duree, sensorName, key, branch, database) +
+                    "echo \'le fichier vient d être créer!\'"
+                    )
 
         # Attributs
         sensor_reader = pd.read_csv(fileName)
+        value = [] # Data to retrieve in the table
+        name = ''
+        if database == 'weather': # Specification from database
+            value = list(sensor_reader['humid'])
+            name = sensorName + ' humid'
+        else: # f4klo
+            value = list(sensor_reader['value'])
+            name = branch + ' ' + sensorName
         sensor_att = {
+                'name':name,
                 'key':key,
                 'branch':branch,
                 'fileName':fileName,
                 'time':list(sensor_reader['time']),
-                'value':list(sensor_reader['value'])
+                'value':value
         }
-        # Ajout d'une ligne à self.PDframe
-        self.PDframe[sensorName] = pd.Series(sensor_att)
+        # Ajout d'une ligne à self.sensorFrame
+        self.sensorFrame[sensorName] = pd.Series(sensor_att)
 
-    def resize(self, x, y, newSize):
+    def resize(self, x, y, newSize): #TODO: return xnew, turn to general fonction
         '''
            Change la taille (newSize) de l'échantillonnage du "sensor"
            grace à une interpolation
@@ -388,31 +434,34 @@ class Transit(metaclass=MetaData):
         import scipy.interpolate as itp
 
         # initial data
-        #x = self.sensorDico[sensor][0]
-        tck = itp.splrep(x, y, s=deg) # parameters for ynew
+        print(len(x))
+        print(len(y))
+        # parameters for ynew
+        tck = itp.splrep(x, y, s=deg, k=2) # k doit être > que nbr de point
         # new vectors
         xnew = np.arange(min(x), max(x), (max(x)-min(x))/newSize) # arange as we want
         ynew = itp.BSpline(*tck)(xnew) # fit to xnew
 
         # plot
-        plt.plot(xnew, ynew, '-', label='interpolation') # interpol
-        plt.plot(x,y,'+', label='Data') # data points
-        plt.show()
+        #plt.plot(xnew, ynew, '-', label='interpolation') # interpol
+        #plt.plot(x,y,'+', label='Data') # data points
+        #plt.show()
 
         print('taille de l\'échantillon: ', len(ynew))
         return ynew
 
-    def __str__(self):
-        '''
-           Affichage des paramètre dans la console
-        '''
-        D = self.__dict__
-        K = list(D.keys())
-        V = list(D.values())
-        disp = '\nTransit n°{}'.format(self.nObs) + "--"*20 + '\n'
-        for i in range(len(K)-4):
-            disp = disp + '{0:^20} | {1:^20}'.format(K[i],V[i]) + '\n'
-        return disp
+# inutilisable depuis que les instance sont dans le panda
+#    def __str__(self):
+#        '''
+#           Affichage des paramètre dans la console
+#        '''
+#        D = self.__dict__
+#        K = list(D.keys())
+#        V = list(D.values())
+#        disp = '\nTransit n°{}'.format(self.nObs) + "--"*20 + '\n'
+#        for i in range(len(K)-4):
+#            disp = disp + '{0:^20} | {1:^20}'.format(K[i],V[i]) + '\n'
+#        return disp
 
 ############################################################################### 
 class Sensor(metaclass=MetaData):
@@ -422,7 +471,7 @@ class Sensor(metaclass=MetaData):
         self.branch = ''
         self.unit = ''
         self.__dict__.update(**dico)
-        # TODO: implémentation dans le reste du programme
+        # TODO: est-elle utile?
 
 ############################################################################### 
 class Elev(metaclass = MetaData):
@@ -430,7 +479,6 @@ class Elev(metaclass = MetaData):
        Chaque fichier Coordonnées est une instance de cette classe
     '''
     def __init__(self):
-        print(self.fileName)
         self.date = self.fileName[12:-3] # extraction de la date dans le nom 
         self.nObsRange = []
         self.modeTot = []
@@ -492,12 +540,19 @@ class Elev(metaclass = MetaData):
            Essai de link avec CarnetLabo.csv
         '''
         nObsRange = []
-        return nObsrange #TODO: fonction à finir
+        return nObsrange #TODO: fonction à finir pour plus de fiabilité
 
 ################################################################################## 
 #TODO: class Spectrum():
-class Spectrum():
-    def __init__(self):
+class Spectrum(metaclass=MetaData):
+    def __init__(self,**dico):
+        self.minF = ''
+        self.maxF = ''
+        self.ech = ''
+        self.freq = []
+        self.values = []
+        self.__dict__.update(**dico)
+
         pass
 
 
