@@ -11,6 +11,8 @@ import scipy as sp
 from Classe import *
 from main import *
 
+#-------- Write.py -----------
+
 def pointValue(begin,end):
     '''
        Calcul pour chaque transit la moyenne de toutes les valeurs du signal réccupéré
@@ -26,25 +28,33 @@ def pointValue(begin,end):
         CopieLabo.loc[int(transit.nObs), 'pointValue'] = point
     CopieLabo.to_csv('./CarnetLabo.pointValue.csv',index_label='nObs')
 
-def PF_Spec(CarnetLabo):
+def PF_Spec(CarnetLabo, fileName): #TODO: CarnetLabo autrement que argument
     """
        écrit Tout les spectres des Points Froids 4 3 1
        Dans un fichier csv
+TEST:
+from main import *
+Write.PF_Spec(CarnetLabo,'PF1_dataFrame.csv')
     """
 
     # Extrait les objet transit tous les point froids du carnet de Labo
     PFobjet = [] 
+
+    # Filtre le CarnetLabo
     # Select by astre name
     astre = CarnetLabo.groupby('astre')
-    PF1 = astre.get_group('PF1')
-    PF3 = astre.get_group('PF3')
+    #PF1 = astre.get_group('PF1')
+    #PF3 = astre.get_group('PF3')
     PF4 = astre.get_group('PF4')
+    #df = pd.concat([PF1,PF3,PF4]) # single DataFrame
+    df = PF4
 
-    df = pd.concat([PF1,PF3,PF4]) # single DataFrame
-    #df = df.groupby('gain').get_group('38.0') # gain filter
+    # 2ème filtre
+    df = df.groupby('gain').get_group('38.0') # gain filter
     print(df)
         
-    PFobjet = list(df['instance'])  # storage of class Transit objects
+    # storage of class Transit objects
+    PFobjet = [Transit.instance[nObs] for nObs in df.index]  
 
     # initialisation des données de capture
     for PF in PFobjet:
@@ -52,13 +62,15 @@ def PF_Spec(CarnetLabo):
         PF.read_Freq()
     
     # Storage of spectrum in CarnetLabo
-    df_PF = pd.DataFrame(
-            [pd.Series(transit.modeFreq) for transit in PFobjet], 
-            index = [PF.nObs for PF in PFobjet],
-            columns = PFobjet[0].freqScale)
+    liste = [list(transit.modeFreq) for transit in PFobjet]
+    keys = [PF.nObs for PF in PFobjet]
+    print(keys)
+    dico = dict(zip(keys,liste))
+
+    df_PF = pd.DataFrame(dico, index = PFobjet[0].freqScale)
 
     print(df_PF)
     # Saving
-    df_PF.to_csv('PF_dataFrame.csv')
+    df_PF.T.to_csv(fileName) # freq in columns
 
 

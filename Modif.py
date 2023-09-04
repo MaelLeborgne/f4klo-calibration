@@ -1,11 +1,23 @@
-'''Correction.py'''
+'''Modif.py'''
 from math import *
+import pandas as pd
+import matplotlib.pyplot as plt
 
-def ModifBy_PF_Spectrum(modifTot):
+def by_PF_Spectrum(transit, modifTot):
     '''Soustrait le spectre des points froid aux données d'entrée'''
-    # Calcul de la mediane des spectres
+    # mediane des spectres
+    spec_med = pd.read_csv('spec_med.csv',index_col=0) # freq in index
+    # normalization
+    spec_med = spec_med / spec_med.mean()
+    # resize
+    spec_med = transit.resize(list(spec_med.index),list(spec_med['0']),8191)
+    spec_med = pd.Series(spec_med)
+
+    # Prediction of quantity of signal to reemove
+    pred_moy_PF = transit.temp_pred()
     # Soustrait la mediane à modifTot
-    return modifTot
+    newTot = modifTot - spec_med * pred_moy_PF
+    return newTot
 
 def Ref(f):
     '''

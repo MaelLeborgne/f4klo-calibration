@@ -9,7 +9,7 @@ import statistics as st
 import scipy as sp
 
 import Classe
-from Classe import *
+from Classe import Transit, Sensor, Spectrum
 from main import *
 
 # Graph storage directory
@@ -17,40 +17,50 @@ GSD = "../Graph_download/"
 
 def Obs1(nObs, mode):
     '''
-    Affiche une Observation numéro nObs
-    Selon le mode choisi: temporel 'T' ou frequentiel 'F'
+       Affiche une Observation numéro nObs
+       Selon le mode choisi: temporel 'T' ou frequentiel 'F'
+TEST:
     '''
     self = Transit.instance[nObs]# choix de l'objet étudié
     self.read_Tot()
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(layout="constrained")
     if mode == 'F':
          self.read_Freq()
          self.graph_Freq(ax)
     elif mode == 'T':
          self.read_Temp()
          self.graph_Temp(ax)
+    fig.savefig('/home/mael/Bureau/StageMael2023/Graph_download/usefull/Sun.png',bbox_inches='tight',dpi=200)
     plt.show()
 
-def Obs2(a,b):
-    """Comparaison des Transit n° a et b"""
-    fig, ax = plt.subplots(2,2,figsize=(15,15), layout="constrained")
+def Obs2(a):
+    '''
+       Comparaison des Transit n° a et b
+TEST:
+    '''
+    fig, ax = plt.subplots(1,2,figsize=(15,15), layout="constrained")
     
-    self = Transit.instance[a] # choix de l'objet étudié
-    self.read_Tot(self) ### NE PAS OUBLIER
-    self.graph_Freq(ax[0,0])
-    self.graph_Temp(ax[0,1])
+    transit = Transit.instance[a] # choix de l'objet étudié
+    transit.read_Tot() ### NE PAS OUBLIER
+    transit.read_Temp()
+    transit.read_Freq()
+    transit.graph_Freq(ax[0])
+    transit.graph_Temp(ax[1])
     
-    self = Transit.instance[b] # choix de l'objet étudié
-    Classe.Transit.read_Tot(self) ### NE PAS OUBLIER
-    self.graph_Freq(ax[1,0])
-    self.graph_Temp(ax[1,1])
+    #self = Transit.instance[b] # choix de l'objet étudié
+    #Classe.Transit.read_Tot(self) ### NE PAS OUBLIER
+    #self.graph_Freq(ax[1,0])
+    #self.graph_Temp(ax[1,1])
     
     print('\n')
     plt.show()
 
 def Obs9(LObs):
-    """affichage en 3*3 de la liste de nObs donnée"""
+    """
+       Affichage en 3*3 de la liste de nObs donnée
+TEST:
+    """
     fig, ax = plt.subplots(3,3,figsize=(15,15), layout="constrained")
     i=0
     j=0
@@ -69,7 +79,10 @@ def Obs9(LObs):
     plt.show()
 
 def Sensor4():
-    '''Affiche les données influx de 4 varibales'''
+    '''
+       Affiche les données influx de 4 varibales
+TEST:
+    '''
     fig, ax = plt.subplots(2,2,figsize=(15,15), layout="constrained")
     
     self = Sensor.fileList[3]
@@ -95,40 +108,91 @@ def Sensor4():
 def PF_read():
     """
        affiche tout les spectres
-       Puis calule et affiche la mediane en chaque point
+       Possibilité d'afficher moyenne, mediane, ...
+       affichage possible en mode histograme (desité de point),
+       afin d'y voir plus clair
+TEST:
     """
     fig, ax = plt.subplots(figsize=(15,15))
 
-    # read
-    df_PF = pd.read_csv('PF_dataFrame.csv',index_col=0)
-    # to list of float
-    freqScale = df_PF.columns.astype(float).to_numpy()
+    # read from 
+    df_PF_f = pd.read_csv('PF4_dataFrame.csv',index_col=0) # freq at columns
+    df_PF_n = df_PF_f.T # nObs at columns
 
-    # iter on spectrum and plot
-    for (label,content) in df_PF.T.items(): 
+    # freq to list of float
+    freqScale = df_PF_f.columns.astype(float).to_numpy()
+    minF = freqScale[0]
+    maxF = freqScale[-1]
+
+    # iter on spectrum and simple plot (PF_spec8.png)
+    #df_PF_n = pd.DataFrame(df_PF_n.iloc[:,:8]) pour ne pas tout afficher
+    for (label,content) in df_PF_n.items(): 
         ax.plot(freqScale,list(content),color='b')
 
-    # Mediane
-    medianeGlobale = df_PF.median(axis=0) # by freq
-    ax.plot(freqScale, medianeGlobale, color='red', label='mediane') # Plot
+#    # plot mediane
+#    mediane = df_PF_f.median(axis=0) # by freq
+#    ax.plot(freqScale, mediane, color='red', label='mediane') # Plot
+#
+#    # plot moyenne
+#    moy = df_PF_f.mean() # by freq
+#    ax.plot(freqScale, moy, color='orange', label='moyenne') # Plot
+#
+#    # plot mediane resampled
+#    med_res = sp.signal.resample(medianeGlobale,60)
+#    freq_new = np.linspace(freqScale[0], freqScale[-1], 60, endpoint=False)
+#    ax.plot(freq_new, med_res, color='purple')
 
-    # mediane resampled
-    med_res = sp.signal.resample(medianeGlobale,60)
-    freq_new = np.linspace(freqScale[0], freqScale[-1], 60, endpoint=False)
-    ax.plot(freq_new, med_res, color='purple')
-
-    # show
-    ax.set_title("Mediane des spectres de tout les tracking de points froids\n(gain à 38)", fontsize=20)
-    #ax.ticklabel_format(useOffset=False)
+#    # plot all spec in density of point (PF_all)
+#    # next 15 lines from https://matplotlib.org/stable/gallery/statistics/time_series_histogram.html#sphx-glr-gallery-statistics-time-series-histogram-py
+#
+#    # Now we will convert the multiple time series into a histogram.
+#    # Linearly interpolate between the points in each time series
+#    num_fine = 8191 # num of value in a spectrum
+#    num_series = len(list(df_PF_n))
+#    x = freqScale
+#    Y = df_PF_f.to_numpy()
+#    x_fine = np.linspace(x.min(), x.max(), num_fine)
+#    y_fine = np.empty((num_series, num_fine), dtype=float)
+#    for i in range(num_series):
+#        y_fine[i, :] = np.interp(x_fine, x, Y[i, :])
+#    y_fine = y_fine.flatten()
+#    import numpy.matlib
+#    x_fine = np.matlib.repmat(x_fine, num_series, 1).flatten()
+#
+#    # Plot (x, y) points in 2d histogram with linear colorscale
+#    from copy import copy
+#    cmap = copy(plt.cm.binary)
+#    cmap.set_bad(cmap(0))
+#    h, xedges, yedges = np.histogram2d(x_fine, y_fine, bins=[400, 100])
+#    pcm = ax.pcolormesh(xedges, yedges, h.T, cmap=cmap,
+#                         vmax=1.5e2, rasterized=True)
+#    fig.colorbar(pcm, ax=ax, label="# points", pad=0)
+#
+    # final setting for plot
     ax.grid(True)
+    ax.ticklabel_format(useOffset=False)
+    plt.xticks(np.arange(minF, maxF+0.00001, 0.2), fontsize='large')
+    ax.set_xlabel('Fréquence (en MHz)',fontsize='xx-large')
+    ax.set_ylabel('Intensité du signal',fontsize='xx-large')
+    ax.set_ylim(0,0.0005)
     ax.legend()
     plt.show()
+#    fig.savefig('/home/mael/Bureau/StageMael2023/Graph_download/usefull/FP_spec8.png',bbox_inches='tight',dpi=200)
 
-def PF_DC():
+def PF_exmin():
+    '''
+      filtre les spectres d'entrée "y"
+      calcule le rapport y_filter/y
+    '''
+
+def PF_DC(fileName):
     """
-       Identifi le spectre continu de chaque point froids avec resample
-       calcule le spectre médian
-       calcule la moyenne de chaque spectre
+       Test de lissage du spectre avec resample
+       calcule le spectre médian et la moyenne de chaque spectre resamplé
+TEST:
+from main import *
+#Write.PF_Spec(CarnetLabo,'PF1_dataFrame.csv') #en modifiant la fonction pour selectionner les données voulues
+PF_DC('PF1_dataFrame')
     """
     fig, ax = plt.subplots(figsize=(15,15))
 
@@ -158,10 +222,11 @@ def PF_DC():
     # Mediane of rsampled
     medianeGlobale = df_PF_new.iloc[:,:-1].median(axis=0) # by freq
     ax.plot(freq_new, medianeGlobale, color='red', label='mediane') # Plot
+    medianeGlobale.to_csv('spec_med.csv') # save median Spectrum
 
     # show
     ax.set_xlabel('Fréquence (en MHz)')
-    ax.set_ylabel('Puissance du signal')
+    ax.set_ylabel('Intensité du signal')
     plt.xticks(np.arange(minF, maxF+0.00001, 0.2))
     ax.ticklabel_format(useOffset=False)
     ax.grid(True)
@@ -171,63 +236,152 @@ def PF_DC():
     # Save
     df_PF_new.to_csv('PF_DC_save.csv')
 
-def PF_DC_Temp():
+def PF_DC_Temp(fileName):
     '''
+       take file of dataframe with all PF Spec
        plot mean by spectrum / mean Temperature
+       fit linéraire pour prédiction hauteur de Spectre PF
 TEST:
 from main import *
-Graph.PF_DC()
-Graph.PF_DC_Temp()
+#Graph.PF_DC(CarnetLabo,'PF1_dataFrame.csv')
+Graph.PF_DC_Temp('PF1_dataFrame.csv')
     '''
-    df_PF = pd.read_csv('PF_DC_save.csv',index_col=0)
+    from Classe import Transit
+    df_PF = pd.read_csv(fileName,index_col=0) # nObs in index
     nObsRange = list(df_PF.index.astype(int))
+
     # Import the Data of sensor on each Observation
-    df_sen = pd.DataFrame(index=['ext']) # filled by loop
+    df_M_T = pd.DataFrame(index=['mean','ext']) # filled by loop
     for nObs in nObsRange:
         # test if exist and request influx if not
         transit = Transit.instance[nObs]
         transit.import_Sensor('ext','obj','temp','f4klo')
         # pick values
-        y_sen = transit.sensorFrame.T['value']['ext']
-        y_sen = np.average(y_sen)
+        temp = transit.sensorFrame.T['value']['ext']
+        temp = np.average(temp)
+        mean = df_PF.loc[nObs,:].mean() #on spec
         # add to DataFrame
-        df_sen[nObs] = y_sen # new column
+        df_M_T[nObs] = [mean,temp] # new column
 
     # Prepare data
-    Spec_M = df_PF['mean']
-    Spec_M = Spec_M.sort_values(ascending=True).to_numpy()
-    Temp = df_sen.T # put nObs in index
-    Temp = Temp.sort_values(by='ext',ascending=True).to_numpy()
-
-    # figure
-    fig, ax = plt.subplots(figsize=(15,15))
-    ax.plot(Temp, Spec_M)
+    df_M_T = df_M_T.T.sort_values(by='ext',ascending=True) # nObs in index
+    Spec_M = df_M_T['mean'].to_numpy()
+    Temp = df_M_T['ext'].to_numpy() # put nObs in index
 
     # fit with scikit learn
     # 1d-list to 2d-list
-    T_2d = list(Temp)
-    print(T_2d)
+    T_2d = [[t] for t in list(Temp)]
     M_2d = [[m] for m in list(Spec_M)]
-    print(M_2d)
 
     # Fit Polynomiale
-    (Y_pred_2d, [x0,x1,x2], err) = fit2D(T_2d,M_2d)
+    (Y_pred_2d, [x0,x1,x2], mape, mse) = fit2D(T_2d,M_2d)
 
     # 2d-list to 1d-list
-    Y_pred_1d = [element[0] for element in Y_pred_2d]
+    Y_pred_1d = np.array([element[0] for element in Y_pred_2d])
 
+    return (Temp, Spec_M, Y_pred_1d, [x0,x1,x2], mape, mse)
+
+def PF_DC_Temp_plot1():
+    '''
+       Plot le(s) résultat de la fonction PF_DC_Temp
+       Permet la séparation des différents points froids
+TEST:
+from main import *
+#Graph.PF_DC()
+Graph.PF_DC_Temp_plot1()
+    '''
     #plot
-    plt.plot(Temp, Y_pred_1d,'o',color='red',label='fit quad')
-    plt.text(0.1, 0.9, fr'$y = {x2:.3}x^2 + {x1:.3}x + {x0:.3}$',
-               transform=plt.gca().transAxes, fontsize=16)
+    (Temp, Spec, Pred, coeff, mape, mse) = PF_DC_Temp('PF_dataFrame.csv')
+    # figure
+    fig, ax = plt.subplots(figsize=(15,15),layout='constrained')
+    ax.plot(Temp, Spec, 'o')
+    plt.plot(Temp, Pred,color='red',label='fit quad')
+    plt.text(0.3, 0.9, fr'$y = {coeff[2]:.3}x^2 + {coeff[1]:.3}x + {coeff[0]:.3}$',
+               transform=plt.gca().transAxes, fontsize='x-large')
+    plt.text(0.3, 0.85, fr'$mape = {mape:.3}$',
+               transform=plt.gca().transAxes, fontsize='x-large')
+    plt.text(0.3, 0.8, fr'$mse = {mse:.3}$',
+               transform=plt.gca().transAxes, fontsize='x-large')
+    plt.xlabel("Température °C", fontsize='x-large')
+    plt.ylabel("moyenne Spectre", fontsize='x-large')
     plt.legend()
-    plt.show()
+    plt.show() 
 
+def PF_DC_Temp_plot3():
+    '''
+       Plot le(s) résultat de la fonction PF_DC_Temp
+       Permet la séparation des différents points froids
+TEST:
+from main import *
+# une par une en changant le filtre mauellement:
+#Write.PF_Spec(CarnetLabo,'PF1_dataFrame.csv')
+#Write.PF_Spec(CarnetLabo,'PF3_dataFrame.csv') 
+#Write.PF_Spec(CarnetLabo,'PF4_dataFrame.csv')
+Graph.PF_DC_Temp_plot3()
+    '''
+    # Data
+    (PF1_Temp, PF1_Spec, PF1_Pred, PF1_coeff, PF1_mape, PF1_mse) = PF_DC_Temp('PF1_dataFrame.csv')
+    (PF3_Temp, PF3_Spec, PF3_Pred, PF3_coeff, PF3_mape, PF3_mse) = PF_DC_Temp('PF3_dataFrame.csv')
+    (PF4_Temp, PF4_Spec, PF4_Pred, PF4_coeff, PF4_mape, PF4_mse) = PF_DC_Temp('PF4_dataFrame.csv')
+
+    # plot
+    fig, ax = plt.subplots(figsize=(15,15),layout='constrained')
+    # Exp
+    ax.plot(PF1_Temp, PF1_Spec, 'o', color='orange')
+    ax.plot(PF3_Temp, PF3_Spec, 'o', color='green')
+    ax.plot(PF4_Temp, PF4_Spec, 'o', color='blue')
+    # Model
+    plt.plot(PF1_Temp, PF1_Pred, color='orange',label='fit PF1')
+    plt.plot(PF3_Temp, PF3_Pred, color='green',label='fit PF3')
+    plt.plot(PF4_Temp, PF4_Pred, color='blue',label='fit PF4')
+#    plt.text(0.1, 0.9, fr'$y = {coeff[2]:.3}x^2 + {coeff[1]:.3}x + {coeff[0]:.3}$',
+#               transform=plt.gca().transAxes, fontsize=16)
+    # taux d'erreur de chaque model
+    # PF1
+    plt.text(0.27, 0.9, fr'$mape = {PF1_mape:.3}$',
+               transform=plt.gca().transAxes, fontsize='large', color='orange')
+    plt.text(0.27, 0.85, fr'$mse = {PF1_mse:.3}$',
+               transform=plt.gca().transAxes, fontsize='large', color='orange')
+    # PF3
+    plt.text(0.45, 0.9, fr'$mape = {PF3_mape:.3}$',
+               transform=plt.gca().transAxes, fontsize='large', color='green')
+    plt.text(0.45, 0.85, fr'$mse = {PF3_mse:.3}$',
+               transform=plt.gca().transAxes, fontsize='large', color='green')
+    # PF4
+    plt.text(0.63, 0.9, fr'$mape = {PF4_mape:.3}$',
+               transform=plt.gca().transAxes, fontsize='large', color='blue')
+    plt.text(0.63, 0.85, fr'$mse = {PF4_mse:.3}$',
+               transform=plt.gca().transAxes, fontsize='large', color='blue')
+    # légende
+    plt.xlabel("Température °C", fontsize='x-large')
+    plt.ylabel("moyenne Spectre", fontsize='x-large')
+    plt.legend()
+    plt.show() 
+
+def PF_all_removed():
+    """
+       Plot all points froids after removing prediction of median spectrum
+TEST:
+
+    """
+    from Classe import Transit
+    df_PF = pd.read_csv('PF_DC_save.csv',index_col=0)
+    nObsRange = list(df_PF.index.astype(int))
+    result = pd.DataFrame(index=nObsRange)
+    for nObs in nObsRange:
+        transit = Transit.instance[nObs]
+        transit.read_Tot()
+        modifFreq = transit.modif_Tot()
+        result[nObs] = modifFreq
+    result.plot()
+    plt.show()
 
 def Elev_read():
     """
        Extaction de données affichable pour chaque trajet en azimut constante
+TEST:
     """
+    from Classe import Elev
     # Création des données
     CopieLabo = pd.read_csv('./CarnetLabo.csv',index_col=0)
     for az in Elev.fileList[0:35]:
@@ -243,9 +397,11 @@ def Elev_fit():
 
 TEST:
 from main import *
+#Write.pointValue() # à effectuer sur tout les transit conserné
 Graph.Elev_read()
 Graph.Elev_fit()
     '''
+    from Classe import Elev
     # Reccup en liste
     E = []
     PV = []
@@ -309,7 +465,7 @@ def fit2D(X,Y):
     mape = mean_absolute_percentage_error(Y,Y_pred)
     print(f"Pourcentage d'Erreur Absolue Moyenne (MAPE) : {mape}")
     
-    return (Y_pred, coeff, mape)
+    return (Y_pred, coeff, mape, mse)
 
 def Elev_fit3D():
     '''
@@ -323,6 +479,7 @@ Graph.Elev_read()
 Graph.Elev_fit2D()
 
     '''
+    from Classe import Elev
     
     # Import Data from class Elev
     E = [] # élévation
@@ -348,13 +505,15 @@ Graph.Elev_fit2D()
     tuple_Exp = zip(E, A, PV) # simple tuple
     Ntuple_Exp = [Point3D(t[0],t[1],t[2]) for t in tuple_Exp] # namedtuple
     df_Exp = pd.DataFrame(Ntuple_Exp) # DataFrame
+    df_Exp.to_csv('pointValue_az_elev.csv')
     
     # Removing the 5 biggest value as aberations
-    df_Exp_clean = df_Exp.sort_values(by='value').iloc[:-10,:]
+    df_Exp_clean = df_Exp.sort_values(by='value').iloc[:-5,:]
     df_Exp_clean = df_Exp_clean.groupby(['azimut','elevation'],as_index=False).mean()
+    df_Exp_clean.to_csv('pointValue_az_elev_cleaned.csv')
     
     # Shaping for scikit library
-    XY = [[e, a] for (e,a) in zip(df_Exp_clean.elevation, df_Exp.azimut)]
+    XY = [[e, a] for (e,a) in zip(df_Exp_clean.elevation, df_Exp_clean.azimut)]
     PV = [[pv] for pv in df_Exp_clean.value]
     
     # Scikit Polynomial model  
@@ -379,35 +538,45 @@ Graph.Elev_fit2D()
     PV_pred = model.predict(XY_poly)
     PV_pred_list = [element[0] for element in PV_pred] # model 1-dimention list
     df_Exp_clean['model'] = PV_pred_list
-    df_Exp_clean.to_csv('DataFrame_elev_az_value_model.csv')
+    #df_Exp_clean.to_csv('DataFrame_elev_az_value_model.csv')
     
     # Group, split, mean, sort
     df_group = df_Exp_clean.groupby("azimut")
     DF = [] # list of DataFrame by azimut
     for (name,group) in df_group:
-        if name != 60 and name != 75:
-            DF.append(group)
-            print(name)
-    
+        #if name != 60 and name != 75: # azimut à vérifier
+        DF.append(group)
+        print(name)
+
     # plot 2D
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(15,15),layout='constrained')
     for frame in DF:
-        ax.plot(frame["elevation"] , frame["value"], label=frame["azimut"].iloc[0])
+        #ax.plot(frame["elevation"] , frame["value"], label=frame["azimut"].iloc[0])
         ax.scatter(frame["elevation"] , frame["value"],color='k',marker='+')
-        #ax.plot(frame["elevation"], frame["model"])
-    
-    ax.set_yscale('log')
-    ax.set_ylim(9e-5, 11e-5)
-    ax.set_xlabel('Elevation')
-    ax.set_ylabel('Signal')
-    plt.legend()
-    plt.show()
-    
+        ax.plot(frame["elevation"], frame["model"])
+        #ax.scatter(frame["azimut"], frame["elevation"], color='b')
+
     # Calculer l'erreur quadratique moyenne (MSE)
     mse = mean_squared_error(PV, PV_pred)
     print(f"Erreur Quadratique Moyenne (MSE) : {mse}")
     mape = mean_absolute_percentage_error(PV,PV_pred)
     print(f"Pourcentage d'Erreur Absolue Moyenne (MAPE) : {mape}")
+   
+    # 2D plot setting
+    #ax.set_yscale('log')
+    ax.set_ylim(9e-5, 10.5e-5)
+    plt.tick_params(labelsize='x-large')
+    ax.set_xlabel('Élevation',fontsize='xx-large')
+    ax.set_ylabel('Intensité moyenne du Signal',fontsize='xx-large')
+    #ax.set_xlabel('Azimut',fontsize='xx-large')
+    #ax.set_ylabel('Élevation',fontsize='xx-large')
+    ax.grid(True)
+    plt.text(25, 0.0001035, fr'$mape = {mape:.3}$',fontsize=15)
+    plt.text(25, 0.0001025, fr'$mse = {mse:.3}$',fontsize=15)
+    #ax.legend()
+    
+#    fig.savefig('/home/mael/Bureau/StageMael2023/Graph_download/usefull/Bruit_Elev_poly.png',bbox_inches='tight',dpi=200)
+    plt.show()
     
 #    # To 2d-array
 #    E_array = np.array([[part1,part2] for (part1,part2) in zip(E_new[:108],E_new[108:])])
@@ -415,7 +584,7 @@ Graph.Elev_fit2D()
 #    PV_array = np.array([[part1,part2] for (part1,part2) in zip(PV_new[:108],PV_new[108:])])
 #    PV_pred_array = np.array([[part1,part2] for (part1,part2) in zip(PV_pred_list[:108], PV_pred_list[108:])])
     
-#    # meth2: DataFrame Nan chamboule les coordonnées
+#    # meth2: DataFrame avec np.nan => chamboule les coordonnées
 #    PV_pred_list = [element[0] for element in PV_pred] # model 1-dimention list
 #    SerListModel = list(Elev.SerList) # Copy experiment pd.Series data
 #    for PV in PV_pred_list:
@@ -431,31 +600,24 @@ Graph.Elev_fit2D()
 #    # plot surface 3D 
 #    from mpl_toolkits.mplot3d import Axes3D
 #    from matplotlib import cm
-#    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+#    fig, ax = plt.subplots(subplot_kw={"projection": "3d"},figsize=(15,15))
 #    ax.set_zscale('log')
 #    ax.set_zlim(9e-5, 11e-5)
-#    ax.set_xlabel('Élevation')
-#    ax.set_ylabel('Azimut')
-#    ax.set_zlabel('Background Noise')
+#    plt.tick_params(labelsize='x-large')
+#    ax.set_zticks([]) # no zticks
+#    ax.set_zticks([], minor=True)
+#    ax.set_xlabel('Élevation',fontsize='xx-large')
+#    ax.set_ylabel('Azimut',fontsize='xx-large')
+#    ax.text2D(0.05, 0.95, fr'$mape = {mape:.3}$', fontsize=15, transform=ax.transAxes)
+#    ax.text2D(0.05, 0.90, fr'$mse = {mse:.3}$', fontsize=15, transform=ax.transAxes)
 #    
 #    ax.scatter3D(df_Exp_clean.elevation ,df_Exp_clean.azimut ,df_Exp_clean.value ,zdir='z',color='b')
 #    surf = ax.plot_trisurf(df_Exp_clean.elevation, df_Exp_clean.azimut, df_Exp_clean.model, cmap=cm.jet, linewidth=0.1)
-#    fig.colorbar(surf, shrink=0.5, aspect=5)
-#    #plt.savefig('{}Elev_fit2_{}.png'.format(GSD,next(iter(os.popen('date \"+%y%m%d%H%M%S\"')))[:-1]))
+#    cb = fig.colorbar(surf, shrink=0.5, aspect=5)
+#    cb.set_label(label='Intensité moyenne du signal', size=15)
 #    plt.show()
-#        
-'''
-# Erreur Quadratique Moyenne:
-# degré 2 (MSE) : 2.8544429484034086e-10
-# degré 3 (MSE) : 2.7562763785302257e-10
-# degré 4 (MSE) : 2.6445467564188925e-10
-# degré 8 (MSE) : 2.5372139821167926e-10
-
-# Pourcentage d'Erreur Absolue Moyenne 
-# degré 2 (MAPE) : 0.027332006694158084
-# degré 3 (MAPE) : 0.022868027542152735
-# degré 4 (MAPE) : 0.021643753017180075
-'''
+#    fig.savefig('/home/mael/Bureau/StageMael2023/Graph_download/usefull/Bruit_3D_sansAberation.png',bbox_inches='tight',dpi=200)
+        
 
 def PF_all_deltaPara(sizeWanted, Sensor_Area):
     '''
@@ -479,15 +641,15 @@ Graph.PF_all_deltaPara(100,
 ('ext','obj','temp','f4klo'),
 ('cav','obj','temp','f4klo'),
 ('preamp2','obj','temp','f4klo'),
-('Pluto','sdr','gain','f4klo'),
 ('LFPG','station','metar','weather')])
 
 erreur avec az, elev
     '''
     import plotly.graph_objects as go
+    from Classe import Transit
 
     # Read PF Spectrum Data
-    df_PF = pd.read_csv('PF_dataFrame.csv',index_col=0)
+    df_PF = pd.read_csv('PF4_dataFrame.csv',index_col=0)
     # Read PF frequency Scale
     freqScale = df_PF.columns.astype(float).to_numpy()
     minF = freqScale[0]
@@ -545,11 +707,9 @@ erreur avec az, elev
     Values = [list(d["values"]) for d in Sensor_ParaDict]
     # to X 2d-array
     X = np.array(list(zip(*Values)))
-    print(np.size(X))
 
     # Spectrum values array
     Y = np.array(y_freq)
-    print(np.size(y_freq))
 
     # Analyse Delta
     Si = delta.analyze(problem, X, Y, print_to_console=True)

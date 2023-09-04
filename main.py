@@ -17,6 +17,8 @@ print('    Extraction du carnet de Labo ... {}'
 import Classe 
 from Classe import *
 
+
+## Shaping the CarnetLabo
 # List of DataFrame to list of Dict
 Frame = CarnetLabo.T # transposing
 Series = [ S for S in list(dict(Frame).values())] # series of attibuts
@@ -42,17 +44,19 @@ CarnetLabo['gain'] = CarnetLabo['fileName'].str.split('_').str.get(2)
 print('Pour afficher la liste des Observations du carnet de Labo,',
         '\nentrez: Transit.display_Obs_carnet()\n')
 
-# Vérification de la cohérences entre Transit.fileList et CarnetLabo 
+
+## Vérification de la cohérences entre Transit.fileList et CarnetLabo 
 # Transit.Verif(CarnetLabo) 
 
-# Fonctions interactives
+
+## Mode interactif
 import Graph
-from Graph import *
 import Write 
+import Modif
 
 def help():
     '''
-       Affiche à l'utilisateur les possibilitées du mode interactif
+       Affiche à l'utilisateur les fonctions du mode interactif
     '''
     print('\n###  Mode interactif   ###')
     from inspect import getmembers, isfunction
@@ -69,6 +73,12 @@ def help():
             if obj.__module__ == 'Write': 
                 print('    ',name, '()')
 
+    print('Modif.')
+    for (name,obj) in getmembers(Modif):
+        if isfunction(obj):
+            if obj.__module__ == 'Modif': 
+                print('    ',name, '()')
+
     print('\nPour Afficher la doc d\'une fonction entrez: print(nomFonction.__doc__)')
     print('Pour Afficher les paramètres d\'une Observation n°nObs, entrez:   CarnetLabo.iloc[nObs]')
     print('\nPour afficher cette aide tapez: help()')
@@ -76,10 +86,9 @@ def help():
 help() 
 
 ## Début de calibration
-#import Correction as Corr
 #print('###  Dictionnaire Astres de référence  ###')
-#RefJanski = Corr.Ref(1.4204) 
+#RefJanski = Modif.Ref(1.4204) 
 #print(RefJanski)
-#RefWatt = Corr.JanskiToWatt(list(RefJanski.values()))
+#RefWatt = Modif.JanskiToWatt(list(RefJanski.values()))
 #print(RefWatt)
 

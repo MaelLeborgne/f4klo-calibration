@@ -8,6 +8,10 @@ from datetime import timedelta
 import time
 import pandas as pd
 
+# my modules
+#import Graph # erreur circular import
+import Modif
+
 classes = {} # dictionnaire class : objet de MetaData
 Unit = [['Secondes', 'Ra', 'Dec'], #TODO: à récupérer dans influx?
       ['Secondes', 'Température (°C)'],
@@ -352,9 +356,10 @@ class Transit(metaclass=MetaData):
         time = self.timeScale
         graph.plot( time, T, marker='+')
         graph.set_title("{}".format(self.astre), fontsize=18)
-        graph.set_xlabel('Temps (en secondes)')
-        graph.set_ylabel('Puissance du signal')
+        graph.set_xlabel('Temps (en secondes)',fontsize='large')
+        graph.set_ylabel('Puissance du signal',fontsize='large')
         graph.grid(True)
+        plt.xticks(np.arange(0,self.duree,600))
 
     def graph_Freq(self, graph):
         '''
@@ -364,8 +369,8 @@ class Transit(metaclass=MetaData):
         freq = self.freqScale 
         graph.plot(freq, F, label=self.nObs, color='blue')
         graph.set_title('{}'.format(self.astre), fontsize=18)
-        graph.set_xlabel('Fréquence (en MHz)')
-        graph.set_ylabel('Puissance du signal')
+        graph.set_xlabel('Fréquence (en MHz)',fontsize='large')
+        graph.set_ylabel('Puissance du signal',fontsize='large')
         graph.grid(True)
         minF = self.freqScale[0]
         maxF = self.freqScale[-1]
@@ -375,10 +380,25 @@ class Transit(metaclass=MetaData):
         '''
            Crée un copie de modeTot
            Et fait des modification en vu de la calibration
+#TEST:
+from main import *
+self = Transit.instance[467]
+self.read_Tot()
+self.modif_Tot()
         '''
-        import Correction as Co
-        self.modifTot = list(self.modeTot)
-        Co.ModifBy_PF_Spectrum(self.modifTot)
+        import Modif
+        modifTot = pd.DataFrame(self.modeTot)
+        modifTot = Modif.by_PF_Spectrum(self, modifTot)
+        modifFreq = modifTot.mean()
+        return modifFreq
+
+    def temp_pred(self):
+        self.import_Sensor('ext','obj','temp','f4klo')
+        # pick values
+        T = self.sensorFrame.T['value']['ext']
+        T = np.average(T)
+        [x0,x1,x2] = Graph.PF_DC_Temp()
+        return x0 + x1*T + x2*T**2
 
     def import_Sensor(self, sensorName, key, branch, database):
         '''
