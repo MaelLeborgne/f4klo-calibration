@@ -6,15 +6,21 @@ f4klo est le nom de la station radiophonique installée par les radioamateurs
 de l'association dimention parabole.
 
 
-#  version Parallel  #
+#  version fin de stage  #
 
-Cette version à été conçu pour permettre aux utilisateurs du telescope
-d'afficher des graphiques en coordonnée parallèles, afin d'étudier la coorélation
-entre le signal obtenu et les nombreux capteurs de la base de donnée influx.
+Cette version permet la création de tout les graphiques présentés dans le rapport de stage. 
+Dans ce programme, la base de donnée utilisée pour les capteurs est: giskard2.hd.free.fr .Cette adresse peut-être modifiée dans le fichier influx.sh
 
-Dans ce programme, la base de donnée utilisée est: giskard2.hd.free.fr
-Cette adresse peut-être modifier dans le fichier influx.sh
 
+#  Structure Générale du programe  #
+• main.py
+    Importation du Carnet de Laboratoire, exécution de Classe.py et ouverture aux commandes de Graph.py et Write.py.
+• Classe.py
+    Création des Classes Transit et Elevation qui permettent le stockage des attributs et des méthodes pour l’ensemble des fichiers générés par les captures.
+• Graph.py
+    Création de graphiques qui combinent les résultats de plusieurs captures
+• Write.py
+    Fonctions d’enregistrements de résultats de calculs visant à réduir le temps d’exécution des fonctions de Graph.py .
 
 #  Manuel d'utilisation:  #
 
@@ -29,8 +35,8 @@ les fichiers d'observation
 À chaque utilisation:
 - dans un terminal entrez python3 pour ouvrir l'invite de commande de python
 - pour initialiser le programme entrez: from main import *
-- pour afficher un graph de Coordonnée parallèle vous utiliserez la fonction
-  Graph_Para_Sensor()
+- Exemple: pour afficher un graph de Coordonnée parallèle vous utiliserez la fonction
+  Graph.Para_Sensor()
   Cette fonction prend en paramètres:
   -  le numéro de l'observation sur lequel vous investiguez
   -  la taille de l'échantillon (nombre de points pour chaque variables)
@@ -40,13 +46,13 @@ les fichiers d'observation
       ('ext','obj','temp'),
       ('cav','obj','temp')]
 - Exemple final:
-Graph_Paral_Sensor(258,100,[('ra','coord','indi'),('dec','coord','indi'),('ext','obj','temp'),('cav','obj','temp')])
+Graph.Paral_Sensor(258,100,[('ra','coord','indi'),('dec','coord','indi'),('ext','obj','temp'),('cav','obj','temp')])
 
   Le Résultat sera affiché dans un nouvel onglet de votre navigateur
 internet.
   Vous pouvez ensuite déplacer certains éléments graphiques avec la souris.
   Plus d'informations sur: https://plotly.com/python/parallel-coordinates-plot/#parallel-coordinates-plot-with-plotly-express
 
+# Documentation des fonctions #
+Une grande partie des fonctions du module Graph.py ont une documentation print(nomDeLaFonction.__doc__) contenant entre autre un test censé fonctionner (les commande entre parathèse ne sont nécessaire que la première fois). 
 
-#  Structure Générale du programe  #
-à venir..
