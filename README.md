@@ -13,14 +13,10 @@ Dans ce programme, la base de donnée utilisée pour les capteurs est: giskard2.
 
 
 #  Structure Générale du programe  #
-- main.py
-  Importation du Carnet de Laboratoire, exécution de Classe.py et ouverture aux commandes de Graph.py et Write.py.
-- Classe.py
-  Création des Classes Transit et Elevation qui permettent le stockage des attributs et des méthodes pour l’ensemble des fichiers générés par les captures.
-- Graph.py
-  Création de graphiques qui combinent les résultats de plusieurs captures
-- Write.py
-  Fonctions d’enregistrements de résultats de calculs visant à réduir le temps d’exécution des fonctions de Graph.py .
+- main.py : Importation du Carnet de Laboratoire, exécution de Classe.py et ouverture aux commandes de Graph.py et Write.py.
+- Classe.py : Création des Classes Transit et Elevation qui permettent le stockage des attributs et des méthodes pour l’ensemble des fichiers générés par les captures.
+- Graph.py : Création de graphiques qui combinent les résultats de plusieurs captures
+- Write.py : Fonctions d’enregistrements de résultats de calculs visant à réduir le temps d’exécution des fonctions de Graph.py .
 
 #  Manuel d'utilisation:  #
 
